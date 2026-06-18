@@ -1,6 +1,7 @@
 # Portfolio Photo Local
 
 Application locale en Python permettant d’afficher automatiquement un portfolio photo à partir d’un dossier principal.
+Fait entièrement par ChatGPT 5.5
 
 L’application recherche tous les dossiers nommés `Retouché`, récupère les photos qu’ils contiennent, puis les affiche dans une galerie web locale, triée par date.
 
