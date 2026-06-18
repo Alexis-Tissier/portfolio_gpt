@@ -30,6 +30,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from PIL import Image
 
 try:
     from PIL import Image, ImageOps  # type: ignore
@@ -131,6 +132,15 @@ def stable_id(path: Path) -> str:
     raw = str(path.resolve()).encode("utf-8", errors="ignore")
     return hashlib.sha1(raw).hexdigest()[:18]
 
+def get_image_dimensions(path: Path) -> Tuple[Optional[int], Optional[int]]:
+    if not PIL_AVAILABLE:
+        return None, None
+    try:
+        with Image.open(path) as img:
+            img = ImageOps.exif_transpose(img)
+            return img.width, img.height
+    except Exception:
+        return None, None
 
 @dataclass
 class PhotoRecord:
@@ -148,6 +158,8 @@ class PhotoRecord:
     date_source: str
     media_url: str
     thumb_url: str
+    width: Optional[int]
+    height: Optional[int]
 
 
 class PhotoIndex:
@@ -227,6 +239,7 @@ class PhotoIndex:
 
                             relative_path = str(resolved.relative_to(root)).replace("\\", "/")
                             folder = str(resolved.parent.relative_to(root)).replace("\\", "/")
+                            image_width, image_height = get_image_dimensions(resolved)
 
                             found[photo_id] = PhotoRecord(
                                 id=photo_id,
@@ -243,6 +256,8 @@ class PhotoIndex:
                                 date_source=source,
                                 media_url=f"/media/{photo_id}",
                                 thumb_url=f"/thumb/{photo_id}",
+                                width=image_width,
+                                height=image_height,
                             )
                         except Exception:
                             continue

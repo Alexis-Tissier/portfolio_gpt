@@ -157,7 +157,13 @@ function renderGallery() {
       const card = document.createElement("button");
       card.type = "button";
       card.className = "photo-card";
+
+      if (photo.width && photo.height) {
+        card.style.aspectRatio = `${photo.width} / ${photo.height}`;
+      }
+
       card.addEventListener("click", () => openLightbox(index));
+
       card.innerHTML = `
         <img src="${photo.thumb_url}" alt="${escapeHtml(photo.filename)}" loading="lazy" decoding="async" />
         <span class="photo-caption">
@@ -165,6 +171,7 @@ function renderGallery() {
           <span>${escapeHtml(photo.date_label)} · ${escapeHtml(photo.folder)}</span>
         </span>
       `;
+
       grid.appendChild(card);
     }
 
