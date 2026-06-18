@@ -1,0 +1,30 @@
+# Configuration locale
+config.json
+config.local.json
+
+# Cache généré par l'application
+cache/
+thumbnails/
+static/cache/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Images / photos personnelles
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.tif
+*.tiff
+*.heic
+*.cr2
+*.cr3
+
+# Windows / Mac
+Thumbs.db
+desktop.ini
+.DS_Store
