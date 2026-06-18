@@ -1,108 +1,97 @@
 # Portfolio Photo Local
 
-Application web locale en français pour afficher automatiquement les photos présentes dans tous les dossiers nommés **Retouché**.
+Application locale en Python permettant d’afficher automatiquement un portfolio photo à partir d’un dossier principal.
 
-## Ce que fait l'application
+L’application recherche tous les dossiers nommés `Retouché`, récupère les photos qu’ils contiennent, puis les affiche dans une galerie web locale, triée par date.
 
-- Elle lit ton dossier principal de photos, sans déplacer ni supprimer de fichiers.
-- Elle cherche automatiquement tous les dossiers nommés `Retouché` dans toute l'arborescence.
-- Elle récupère les photos contenues dans ces dossiers, même si elles sont dans plusieurs sous-dossiers.
-- Elle trie les photos par date à partir du nom du fichier, par exemple :
+## Fonctionnalités
+
+- Scan automatique d’une arborescence de dossiers
+- Détection des dossiers `Retouché`
+- Récupération des photos dans les sous-dossiers
+- Tri chronologique à partir du nom du fichier
+- Affichage par mois
+- Galerie web locale
+- Lecture seule des fichiers
+
+## Format des fichiers
+
+L’application utilise la date présente au début du nom du fichier.
+
+Exemple :
 
 ```text
 20260616-200152-0001-Alexis Tissier.jpg
 ```
 
-Ici, la date détectée est : `16/06/2026`.
-
-- Elle regroupe l'affichage par mois : `Juin 2026`, `Mai 2026`, etc.
-- Elle affiche une galerie propre avec recherche, filtre par année, mode sombre/clair et affichage plein écran.
-
-## Installation rapide
-
-### 1. Dézipper le dossier
-
-Dézippe le fichier puis ouvre le dossier `photo_portfolio_app`.
-
-### 2. Lancer l'application
-
-Sur Windows, double-clique sur :
+La date détectée est :
 
 ```text
-lancer_windows.bat
+20260616 = 16 juin 2026
 ```
 
-Sinon, dans un terminal :
+## Installation
+
+Cloner le projet :
 
 ```bash
-python server.py
+git clone https://github.com/Alexis-Tissier/portfolio_gpt.git
+cd portfolio_gpt
 ```
 
-L'application s'ouvre ensuite dans le navigateur :
-
-```text
-http://127.0.0.1:8000
-```
-
-### 3. Configurer le dossier photo
-
-Dans l'interface, indique le dossier racine, par exemple :
-
-```text
-C:\Users\Alexis\Documents\Photos
-```
-
-Puis clique sur **Enregistrer et scanner**.
-
-## Lancement avec le dossier directement
-
-Tu peux aussi lancer comme ça :
-
-```bash
-python server.py --root "C:\Users\Alexis\Documents\Photos"
-```
-
-## Miniatures plus rapides
-
-L'application fonctionne sans installation supplémentaire.
-
-Pour que les miniatures chargent plus vite, installe Pillow :
+Installer les dépendances :
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Si Pillow n'est pas installé, l'application affichera quand même les photos, mais elle utilisera les fichiers originaux comme miniatures.
+## Lancement
 
-## Formats reconnus
+Sous Windows :
 
 ```text
-.jpg, .jpeg, .png, .webp, .bmp, .gif, .tif, .tiff
+lancer_windows.bat
 ```
 
-Les fichiers RAW Canon comme `.CR2` ne s'affichent pas directement dans un navigateur. Il faut plutôt exporter les photos retouchées en JPEG, PNG ou WebP.
+Ou manuellement :
 
-## Notes importantes
+```bash
+python server.py
+```
 
-- L'application lit seulement tes photos.
-- Elle ne copie pas tes images.
-- Elle ne modifie pas les fichiers originaux.
-- Elle fonctionne en local sur ton ordinateur.
-- Le site n'est pas publié sur Internet.
+L’application s’ouvre ensuite dans le navigateur à l’adresse :
+
+```text
+http://127.0.0.1:8000
+```
+
+## Configuration
+
+Le fichier `config.json` n’est pas envoyé sur GitHub, car il dépend du chemin local de chaque utilisateur.
+
+Exemple :
+
+```json
+{
+  "photos_root": "C:/Users/Alexis/Documents/Photos",
+  "target_folder_name": "Retouché"
+}
+```
 
 ## Structure du projet
 
 ```text
-photo_portfolio_app/
-├── server.py
-├── config.json
-├── requirements.txt
+portfolio_gpt/
+├── static/
+├── .gitignore
+├── README.md
 ├── lancer_windows.bat
 ├── lancer_mac_linux.sh
-├── static/
-│   ├── index.html
-│   ├── style.css
-│   └── script.js
-└── cache/
-    └── thumbnails/
+├── requirements.txt
+└── server.py
 ```
+
+## Important
+
+Les photos ne sont pas stockées dans GitHub.  
+L’application lit simplement les fichiers présents sur l’ordinateur.
