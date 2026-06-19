@@ -129,6 +129,42 @@ function groupByMonth(photos) {
   return [...groups.values()];
 }
 
+function getDayKey(photo) {
+  if (photo.date_iso) return photo.date_iso.slice(0, 10);
+  return photo.date_label || "sans-date";
+}
+
+function formatDayLabel(photo) {
+  if (!photo.date_iso) return photo.date_label || "Sans date";
+
+  const date = new Date(photo.date_iso);
+  if (Number.isNaN(date.getTime())) return photo.date_label || "Sans date";
+
+  return date.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function groupByDay(photos) {
+  const groups = new Map();
+
+  for (const photo of photos) {
+    const key = getDayKey(photo);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label: formatDayLabel(photo),
+        photos: [],
+      });
+    }
+    groups.get(key).photos.push(photo);
+  }
+
+  return [...groups.values()];
+}
+
 function renderStats() {
   const groups = groupByMonth(state.filtered).filter((group) => group.key !== "sans-date");
   const years = new Set(state.filtered.map((photo) => photo.year).filter(Boolean));
@@ -141,42 +177,54 @@ function renderGallery() {
   gallery.innerHTML = "";
   emptyState.classList.toggle("hidden", state.filtered.length > 0);
 
-  for (const group of groupByMonth(state.filtered)) {
+  for (const monthGroup of groupByMonth(state.filtered)) {
     const section = document.createElement("section");
     section.className = "gallery-month";
 
     const title = document.createElement("div");
     title.className = "month-title";
-    title.innerHTML = `<h2>${escapeHtml(group.label)}</h2><span>${group.photos.length} photo${group.photos.length > 1 ? "s" : ""}</span>`;
+    title.innerHTML = `<h2>${escapeHtml(monthGroup.label)}</h2><span>${monthGroup.photos.length} photo${monthGroup.photos.length > 1 ? "s" : ""}</span>`;
+    section.appendChild(title);
 
-    const grid = document.createElement("div");
-    grid.className = "masonry";
+    for (const dayGroup of groupByDay(monthGroup.photos)) {
+      const daySection = document.createElement("section");
+      daySection.className = "gallery-day";
 
-    for (const photo of group.photos) {
-      const index = state.filtered.indexOf(photo);
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "photo-card";
+      const dayTitle = document.createElement("div");
+      dayTitle.className = "day-title";
+      dayTitle.innerHTML = `<h3>${escapeHtml(dayGroup.label)}</h3><span>${dayGroup.photos.length} photo${dayGroup.photos.length > 1 ? "s" : ""}</span>`;
 
-      if (photo.width && photo.height) {
-        card.style.aspectRatio = `${photo.width} / ${photo.height}`;
+      const grid = document.createElement("div");
+      grid.className = "masonry";
+
+      for (const photo of dayGroup.photos) {
+        const index = state.filtered.indexOf(photo);
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "photo-card";
+
+        if (photo.width && photo.height) {
+          card.style.aspectRatio = `${photo.width} / ${photo.height}`;
+        }
+
+        card.addEventListener("click", () => openLightbox(index));
+
+        card.innerHTML = `
+          <img src="${photo.thumb_url}" alt="${escapeHtml(photo.filename)}" loading="lazy" decoding="async" />
+          <span class="photo-caption">
+            <strong>${escapeHtml(photo.filename)}</strong>
+            <span>${escapeHtml(photo.date_label)} · ${escapeHtml(photo.folder)}</span>
+          </span>
+        `;
+
+        grid.appendChild(card);
       }
 
-      card.addEventListener("click", () => openLightbox(index));
-
-      card.innerHTML = `
-        <img src="${photo.thumb_url}" alt="${escapeHtml(photo.filename)}" loading="lazy" decoding="async" />
-        <span class="photo-caption">
-          <strong>${escapeHtml(photo.filename)}</strong>
-          <span>${escapeHtml(photo.date_label)} · ${escapeHtml(photo.folder)}</span>
-        </span>
-      `;
-
-      grid.appendChild(card);
+      daySection.appendChild(dayTitle);
+      daySection.appendChild(grid);
+      section.appendChild(daySection);
     }
 
-    section.appendChild(title);
-    section.appendChild(grid);
     gallery.appendChild(section);
   }
 }
