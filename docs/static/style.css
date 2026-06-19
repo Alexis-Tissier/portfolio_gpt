@@ -106,48 +106,8 @@ button {
   color: var(--text);
 }
 
-.gallery-month {
-  margin: 0 0 62px;
-}
-
-.month-title,
-.day-title {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.month-title {
-  margin: 0 0 22px;
-  padding: 0 4px;
-}
-
-.month-title h2 {
-  margin: 0;
-  font-size: clamp(1.7rem, 3vw, 3.25rem);
-  letter-spacing: -0.05em;
-}
-
-.month-title span,
-.day-title span {
-  color: var(--muted);
-  font-weight: 850;
-}
-
-.gallery-day {
-  margin: 0 0 34px;
-}
-
-.day-title {
-  margin: 0 0 14px;
-  padding: 0 4px;
-}
-
-.day-title h3 {
-  margin: 0;
-  font-size: clamp(1.05rem, 1.7vw, 1.55rem);
-  letter-spacing: -0.03em;
+.gallery {
+  margin-top: 10px;
 }
 
 .masonry {
@@ -201,22 +161,12 @@ button {
   transform: translateY(0);
 }
 
-.photo-caption strong,
-.photo-caption span {
+.photo-caption strong {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.photo-caption strong {
-  font-size: 0.92rem;
-}
-
-.photo-caption span {
-  margin-top: 4px;
-  opacity: 0.76;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
 }
 
 .empty-state {
