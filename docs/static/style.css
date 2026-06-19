@@ -47,6 +47,13 @@ button {
   cursor: pointer;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
 .app-shell {
   width: min(1480px, calc(100% - 48px));
   margin: 0 auto;
@@ -89,11 +96,27 @@ button {
 }
 
 .ghost-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 11px 18px;
+  padding: 0 18px;
   background: var(--panel);
   color: var(--text);
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.ghost-btn:hover {
+  transform: translateY(-1px);
+  background: var(--panel-strong);
+  border-color: var(--accent);
 }
 
 .stats {
@@ -183,80 +206,133 @@ button {
   display: none !important;
 }
 
+
+body.lightbox-open {
+  overflow: hidden;
+}
+
 .lightbox {
   position: fixed;
   inset: 0;
   z-index: 100;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.92);
-  padding: 28px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.9);
 }
 
 .lightbox figure {
   margin: 0;
-  width: min(1180px, 88vw);
-  max-height: 92vh;
-  display: grid;
-  gap: 14px;
-  place-items: center;
+  width: min(1320px, 92vw);
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .lightbox img {
-  max-width: 100%;
-  max-height: 82vh;
+  display: block;
+  max-width: min(1320px, 92vw);
+  max-height: 88vh;
   object-fit: contain;
-  border-radius: 18px;
+  border-radius: 14px;
   box-shadow: 0 24px 90px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
 }
 
 .lightbox figcaption {
-  display: grid;
-  gap: 4px;
-  color: #fff;
-  text-align: center;
-}
-
-.lightbox figcaption span {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 0.9rem;
+  display: none;
 }
 
 .lightbox-close,
 .lightbox-nav {
   position: fixed;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.76);
+  box-shadow: none;
+  backdrop-filter: none;
+  appearance: none;
+  font-size: 0;
+  line-height: 1;
+  transition: color 0.16s ease, opacity 0.16s ease, transform 0.16s ease;
 }
 
 .lightbox-close {
   top: 22px;
-  right: 22px;
+  right: 24px;
   width: 44px;
   height: 44px;
-  border-radius: 999px;
-  font-size: 2rem;
+  opacity: 0.78;
+}
+
+.lightbox-close::before {
+  content: "×";
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 36px;
+  font-weight: 200;
   line-height: 1;
+  transform: translateY(-2px);
+}
+
+.lightbox-close:hover {
+  opacity: 1;
+  color: #fff;
+  transform: scale(1.04);
 }
 
 .lightbox-nav {
+  top: 0;
+  bottom: 0;
+  width: 22vw;
+  height: 100vh;
+  opacity: 0.42;
+}
+
+.lightbox-nav::before {
+  position: absolute;
   top: 50%;
-  transform: translateY(-50%);
-  width: 52px;
-  height: 70px;
-  border-radius: 999px;
-  font-size: 3rem;
-  line-height: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(3.2rem, 6vw, 5.4rem);
+  font-weight: 200;
+  line-height: 1;
+  transform: translateY(-52%);
 }
 
 .lightbox-prev {
-  left: 22px;
+  left: 0;
+}
+
+.lightbox-prev::before {
+  content: "‹";
+  left: clamp(18px, 3vw, 48px);
 }
 
 .lightbox-next {
-  right: 22px;
+  right: 0;
+}
+
+.lightbox-next::before {
+  content: "›";
+  right: clamp(18px, 3vw, 48px);
+}
+
+.lightbox-nav:hover {
+  opacity: 1;
+  color: #fff;
+}
+
+.lightbox-nav:focus-visible,
+.lightbox-close:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.72);
+  outline-offset: 4px;
 }
 
 @media (max-width: 1100px) {
@@ -267,6 +343,10 @@ button {
   .hero {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .hero-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -281,7 +361,7 @@ button {
   }
 
   .lightbox-nav {
-    display: none;
+    width: 26vw;
   }
 }
 
@@ -289,4 +369,100 @@ button {
   .masonry {
     column-count: 1;
   }
+}
+/* ----------------------------------
+   Correction définitive lightbox
+   ---------------------------------- */
+
+.lightbox-close {
+  position: fixed !important;
+  top: 28px !important;
+  right: 32px !important;
+  z-index: 1005 !important;
+
+  width: 44px !important;
+  height: 44px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+
+  font-size: 0 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+}
+
+.lightbox-close::before {
+  content: "×";
+  font-size: 42px;
+  font-weight: 300;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.lightbox-close:hover {
+  color: white !important;
+  transform: none !important;
+}
+
+.lightbox-nav {
+  position: fixed !important;
+  top: 50% !important;
+  z-index: 1003 !important;
+
+  width: 80px !important;
+  height: 110px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+
+  color: rgba(255, 255, 255, 0.75) !important;
+  font-size: 0 !important;
+  cursor: pointer !important;
+}
+
+.lightbox-prev {
+  left: 24px !important;
+  right: auto !important;
+  transform: translateY(-50%) !important;
+}
+
+.lightbox-next {
+  right: 24px !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+}
+
+.lightbox-prev::before {
+  content: "‹";
+  font-size: 74px;
+  font-weight: 200;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.lightbox-next::before {
+  content: "›";
+  font-size: 74px;
+  font-weight: 200;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.lightbox-nav:hover {
+  color: white !important;
+  transform: translateY(-50%) !important;
 }

@@ -77,8 +77,10 @@ function openLightbox(index) {
   state.currentIndex = index;
   const photo = state.filtered[index];
   lightboxImage.src = photo.url;
-  lightboxTitle.textContent = `Photo ${index + 1} / ${state.filtered.length}`;
-  lightboxMeta.textContent = "Sélection publique";
+  lightboxImage.alt = `Photographie ${index + 1} sur ${state.filtered.length}`;
+  lightboxTitle.textContent = "";
+  lightboxMeta.textContent = "";
+  document.body.classList.add("lightbox-open");
   lightbox.classList.remove("hidden");
   lightbox.setAttribute("aria-hidden", "false");
 }
@@ -86,6 +88,7 @@ function openLightbox(index) {
 function closeLightbox() {
   lightbox.classList.add("hidden");
   lightbox.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("lightbox-open");
   lightboxImage.src = "";
 }
 
