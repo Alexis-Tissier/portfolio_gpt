@@ -39,6 +39,33 @@ async function loadPhotos() {
   renderGallery();
 }
 
+function getThumbUrl(photo) {
+  return photo.thumb_url || photo.url || photo.full_url;
+}
+
+function getFullUrl(photo) {
+  return photo.full_url || photo.url || photo.thumb_url;
+}
+
+function preloadImage(url) {
+  if (!url) return;
+  const img = new Image();
+  img.src = url;
+}
+
+function preloadAround(index) {
+  const total = state.filtered.length;
+  if (!total) return;
+
+  const current = state.filtered[index];
+  const previous = state.filtered[(index - 1 + total) % total];
+  const next = state.filtered[(index + 1) % total];
+
+  preloadImage(getFullUrl(current));
+  preloadImage(getFullUrl(previous));
+  preloadImage(getFullUrl(next));
+}
+
 function renderGallery() {
   gallery.innerHTML = "";
   photoCount.textContent = state.filtered.length;
@@ -47,8 +74,7 @@ function renderGallery() {
   const grid = document.createElement("div");
   grid.className = "masonry public-selection";
 
-  for (const photo of state.filtered) {
-    const index = state.filtered.indexOf(photo);
+  state.filtered.forEach((photo, index) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "photo-card";
@@ -59,15 +85,25 @@ function renderGallery() {
 
     card.addEventListener("click", () => openLightbox(index));
 
-    card.innerHTML = `
-      <img src="${photo.url}" alt="Photographie" loading="lazy" decoding="async" />
-      <span class="photo-caption" aria-hidden="true">
-        <strong>Voir la photo</strong>
-      </span>
-    `;
+    const img = document.createElement("img");
+    img.src = getThumbUrl(photo);
+    img.alt = "Photographie";
+    img.decoding = "async";
+    img.loading = index < 12 ? "eager" : "lazy";
 
+    img.addEventListener("load", () => {
+      card.classList.add("is-loaded");
+    });
+
+    const caption = document.createElement("span");
+    caption.className = "photo-caption";
+    caption.setAttribute("aria-hidden", "true");
+    caption.innerHTML = "<strong>Voir la photo</strong>";
+
+    card.appendChild(img);
+    card.appendChild(caption);
     grid.appendChild(card);
-  }
+  });
 
   gallery.appendChild(grid);
 }
@@ -76,13 +112,17 @@ function openLightbox(index) {
   if (!state.filtered[index]) return;
   state.currentIndex = index;
   const photo = state.filtered[index];
-  lightboxImage.src = photo.url;
+
+  lightboxImage.src = getFullUrl(photo);
   lightboxImage.alt = `Photographie ${index + 1} sur ${state.filtered.length}`;
   lightboxTitle.textContent = "";
   lightboxMeta.textContent = "";
+
   document.body.classList.add("lightbox-open");
   lightbox.classList.remove("hidden");
   lightbox.setAttribute("aria-hidden", "false");
+
+  preloadAround(index);
 }
 
 function closeLightbox() {
@@ -105,9 +145,23 @@ themeToggle.addEventListener("click", () => {
   applyTheme();
 });
 
-$("#closeLightbox").addEventListener("click", closeLightbox);
-$("#prevPhoto").addEventListener("click", () => moveLightbox(-1));
-$("#nextPhoto").addEventListener("click", () => moveLightbox(1));
+$("#closeLightbox").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  closeLightbox();
+});
+
+$("#prevPhoto").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  moveLightbox(-1);
+});
+
+$("#nextPhoto").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  moveLightbox(1);
+});
 
 lightbox.addEventListener("click", (event) => {
   if (event.target === lightbox) closeLightbox();

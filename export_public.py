@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 Export public du portfolio photo.
 
-Usage :
-    1. Mets uniquement des photos publiables dans le dossier A_publier/
-    2. Lance :
-        python export_public.py
+Le script lit uniquement les photos placées dans A_publier/,
+supprime les métadonnées EXIF, génère :
+- des miniatures optimisées pour la galerie ;
+- des images haute qualité pour la lightbox ;
+- docs/data/photos.json.
 
-Le script :
-    - lit les images dans A_publier/
-    - randomise leur ordre de manière stable
-    - corrige l'orientation
-    - supprime les métadonnées EXIF
-    - redimensionne pour le web
-    - convertit en .webp
-    - renomme les fichiers en photo-0001.webp, photo-0002.webp...
-    - génère docs/data/photos.json sans date, sans nom original et sans chemin privé
+A_publier/ doit rester ignoré par Git.
 """
 
 from __future__ import annotations
@@ -26,131 +18,173 @@ import hashlib
 import json
 import random
 import shutil
-from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 from PIL import Image, ImageOps
 
-
 PROJECT_DIR = Path(__file__).resolve().parent
 SOURCE_DIR = PROJECT_DIR / "A_publier"
+
 DOCS_DIR = PROJECT_DIR / "docs"
-OUTPUT_PHOTOS_DIR = DOCS_DIR / "photos"
-OUTPUT_DATA_DIR = DOCS_DIR / "data"
-OUTPUT_JSON = OUTPUT_DATA_DIR / "photos.json"
+PHOTOS_DIR = DOCS_DIR / "photos"
+THUMBS_DIR = PHOTOS_DIR / "thumbs"
+FULL_DIR = PHOTOS_DIR / "full"
+DATA_DIR = DOCS_DIR / "data"
+JSON_PATH = DATA_DIR / "photos.json"
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
+SUPPORTED_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".bmp",
+    ".tif",
+    ".tiff",
+}
 
-MAX_SIZE = 2400
-WEBP_QUALITY = 86
+THUMB_MAX_SIZE = 1600
+THUMB_QUALITY = 86
+
+FULL_MAX_SIZE = 3200
+FULL_QUALITY = 92
+
 RANDOM_SEED = "portfolio-public-v1"
 
 
-@dataclass
-class PublicPhoto:
-    id: str
-    filename: str
-    url: str
-    width: int
-    height: int
-    order: int
+def stable_hash(path: Path) -> str:
+    try:
+        stat = path.stat()
+        raw = f"{path.name}|{stat.st_size}|{stat.st_mtime_ns}".encode("utf-8", errors="ignore")
+    except Exception:
+        raw = str(path).encode("utf-8", errors="ignore")
+    return hashlib.sha1(raw).hexdigest()[:14]
 
 
-def source_fingerprint(path: Path) -> str:
-    stat = path.stat()
-    raw = f"{path.name}::{stat.st_size}::{stat.st_mtime_ns}".encode("utf-8", errors="ignore")
-    return hashlib.sha1(raw).hexdigest()
-
-
-def public_id(path: Path) -> str:
-    return source_fingerprint(path)[:12]
-
-
-def clean_output_folder() -> None:
-    OUTPUT_PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    for item in OUTPUT_PHOTOS_DIR.iterdir():
-        if item.name == ".gitkeep":
-            continue
-        if item.is_file():
-            item.unlink()
-
-
-def export_image(source: Path, destination: Path) -> Tuple[int, int]:
-    with Image.open(source) as img:
-        img = ImageOps.exif_transpose(img)
-
-        if img.mode not in ("RGB", "RGBA"):
-            img = img.convert("RGB")
-
-        img.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
-
-        # Nouvelle image sans métadonnées EXIF.
-        clean = Image.new("RGBA" if img.mode == "RGBA" else "RGB", img.size)
-        clean.paste(img)
-
-        clean.save(destination, "WEBP", quality=WEBP_QUALITY, method=6)
-        return clean.size
-
-
-def find_source_images() -> list[Path]:
+def collect_images() -> List[Path]:
     if not SOURCE_DIR.exists():
         SOURCE_DIR.mkdir(parents=True, exist_ok=True)
-        print(f"Dossier créé : {SOURCE_DIR}")
-        print("Mets des photos publiques dedans, puis relance le script.")
         return []
 
-    images = [
-        path for path in SOURCE_DIR.rglob("*")
-        if path.is_file() and path.suffix.casefold() in ALLOWED_EXTENSIONS
+    files = [
+        path
+        for path in SOURCE_DIR.rglob("*")
+        if path.is_file() and path.suffix.casefold() in SUPPORTED_EXTENSIONS
     ]
 
-    # Ordre stable avant le mélange, pour que le résultat soit reproductible.
-    images.sort(key=lambda path: str(path.relative_to(SOURCE_DIR)).casefold())
+    return sorted(files, key=lambda item: item.name.casefold())
 
-    rng = random.Random(RANDOM_SEED)
-    rng.shuffle(images)
-    return images
+
+def reset_output() -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
+
+    if THUMBS_DIR.exists():
+        shutil.rmtree(THUMBS_DIR)
+    if FULL_DIR.exists():
+        shutil.rmtree(FULL_DIR)
+
+    THUMBS_DIR.mkdir(parents=True, exist_ok=True)
+    FULL_DIR.mkdir(parents=True, exist_ok=True)
+
+    gitkeep = PHOTOS_DIR / ".gitkeep"
+    if not gitkeep.exists():
+        gitkeep.write_text("", encoding="utf-8")
+
+
+def open_clean_image(source: Path) -> Image.Image:
+    with Image.open(source) as img:
+        img = ImageOps.exif_transpose(img)
+        img.load()
+
+    if img.mode in ("RGBA", "LA"):
+        background = Image.new("RGB", img.size, (255, 255, 255))
+        alpha = img.getchannel("A") if "A" in img.getbands() else None
+        background.paste(img.convert("RGBA"), mask=alpha)
+        return background
+
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    return img
+
+
+def resize_to_max(img: Image.Image, max_size: int) -> Image.Image:
+    copy = img.copy()
+    copy.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+    return copy
+
+
+def save_webp(img: Image.Image, target: Path, quality: int) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    img.save(target, "WEBP", quality=quality, method=6)
+
+
+def export_one(source: Path, index: int, order: int) -> Dict[str, object]:
+    image_id = stable_hash(source)
+    filename = f"photo-{index:04d}.webp"
+
+    with open_clean_image(source) as img:
+        full = resize_to_max(img, FULL_MAX_SIZE)
+        thumb = resize_to_max(img, THUMB_MAX_SIZE)
+
+        full_path = FULL_DIR / filename
+        thumb_path = THUMBS_DIR / filename
+
+        save_webp(full, full_path, FULL_QUALITY)
+        save_webp(thumb, thumb_path, THUMB_QUALITY)
+
+        width, height = thumb.size
+        full_width, full_height = full.size
+
+    return {
+        "id": f"photo-{index:04d}-{image_id}",
+        "order": order,
+        "thumb_url": f"photos/thumbs/{filename}",
+        "full_url": f"photos/full/{filename}",
+        "url": f"photos/thumbs/{filename}",
+        "width": width,
+        "height": height,
+        "full_width": full_width,
+        "full_height": full_height,
+    }
+
+
+def build_random_order(images: List[Path]) -> Dict[Path, int]:
+    ordered = list(images)
+    random.Random(RANDOM_SEED).shuffle(ordered)
+    return {path: order for order, path in enumerate(ordered)}
 
 
 def main() -> int:
-    clean_output_folder()
-    images = find_source_images()
+    images = collect_images()
+
+    reset_output()
 
     if not images:
-        OUTPUT_JSON.write_text("[]\n", encoding="utf-8")
-        print("Aucune photo à exporter.")
+        JSON_PATH.write_text("[]\n", encoding="utf-8")
+        print("Aucune photo trouvée dans A_publier/.")
         return 0
 
-    exported: list[PublicPhoto] = []
+    order_map = build_random_order(images)
+    exported = []
 
     for index, source in enumerate(images, start=1):
-        output_name = f"photo-{index:04d}.webp"
-        output_path = OUTPUT_PHOTOS_DIR / output_name
-        width, height = export_image(source, output_path)
+        try:
+            exported.append(export_one(source, index, order_map[source]))
+            print(f"Export : {source.name}")
+        except Exception as exc:
+            print(f"Erreur avec {source.name} : {exc}")
 
-        exported.append(
-            PublicPhoto(
-                id=public_id(source),
-                filename=output_name,
-                url=f"photos/{output_name}",
-                width=width,
-                height=height,
-                order=index,
-            )
-        )
+    exported.sort(key=lambda item: int(item["order"]))
+    JSON_PATH.write_text(json.dumps(exported, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    OUTPUT_JSON.write_text(
-        json.dumps([asdict(photo) for photo in exported], indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
+    print()
     print(f"{len(exported)} photo(s) exportée(s).")
-    print("Ordre : aléatoire stable")
-    print(f"Images : {OUTPUT_PHOTOS_DIR}")
-    print(f"Données : {OUTPUT_JSON}")
+    print(f"Miniatures : {THUMBS_DIR}")
+    print(f"Photos HD  : {FULL_DIR}")
+    print(f"Données    : {JSON_PATH}")
+
     return 0
 
 
