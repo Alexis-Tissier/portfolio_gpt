@@ -55,6 +55,34 @@ function preloadAround(index) {
   preloadImage(getFullUrl(next));
 }
 
+function getColumnCount() {
+  const width = window.innerWidth;
+
+  if (width <= 520) return 1;
+  if (width <= 800) return 2;
+  if (width <= 1100) return 3;
+  return 4;
+}
+
+function getAspectRatio(photo) {
+  if (photo.width && photo.height) {
+    return Number(photo.height) / Number(photo.width);
+  }
+  return 1.25;
+}
+
+function getShortestColumnIndex(columnHeights) {
+  let shortestIndex = 0;
+
+  for (let i = 1; i < columnHeights.length; i++) {
+    if (columnHeights[i] < columnHeights[shortestIndex]) {
+      shortestIndex = i;
+    }
+  }
+
+  return shortestIndex;
+}
+
 async function loadPhotos() {
   try {
     const response = await fetch("data/photos.json", { cache: "no-store" });
@@ -136,29 +164,39 @@ function renderGallery() {
   const featuredPhotos = state.filtered.filter((photo) => photo.featured === true);
   const randomPhotos = state.filtered.filter((photo) => photo.featured !== true);
 
-  if (featuredPhotos.length > 0) {
-    const featuredGrid = document.createElement("div");
-    featuredGrid.className = "featured-selection";
+  const columnCount = getColumnCount();
+  state.columnCount = columnCount;
 
-    featuredPhotos.forEach((photo) => {
-      const index = state.filtered.indexOf(photo);
-      featuredGrid.appendChild(createPhotoCard(photo, index));
-    });
+  const masonry = document.createElement("div");
+  masonry.className = "masonry public-selection";
 
-    gallery.appendChild(featuredGrid);
+  const columns = [];
+  const columnHeights = [];
+
+  for (let i = 0; i < columnCount; i++) {
+    const column = document.createElement("div");
+    column.className = "masonry-column";
+    columns.push(column);
+    columnHeights.push(0);
+    masonry.appendChild(column);
   }
 
-  if (randomPhotos.length > 0) {
-    const masonry = document.createElement("div");
-    masonry.className = "masonry public-selection";
-
-    randomPhotos.forEach((photo) => {
-      const index = state.filtered.indexOf(photo);
-      masonry.appendChild(createPhotoCard(photo, index));
-    });
-
-    gallery.appendChild(masonry);
+  function appendToColumn(photo, columnIndex) {
+    const index = state.filtered.indexOf(photo);
+    columns[columnIndex].appendChild(createPhotoCard(photo, index));
+    columnHeights[columnIndex] += getAspectRatio(photo);
   }
+
+  featuredPhotos.forEach((photo, index) => {
+    appendToColumn(photo, index % columnCount);
+  });
+
+  randomPhotos.forEach((photo) => {
+    const columnIndex = getShortestColumnIndex(columnHeights);
+    appendToColumn(photo, columnIndex);
+  });
+
+  gallery.appendChild(masonry);
 }
 
 function openLightbox(index) {
@@ -246,6 +284,19 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeLightbox();
   if (event.key === "ArrowLeft") moveLightbox(-1);
   if (event.key === "ArrowRight") moveLightbox(1);
+});
+
+
+let resizeTimer = null;
+
+window.addEventListener("resize", () => {
+  if (!state.filtered.length) return;
+
+  const nextColumnCount = getColumnCount();
+  if (nextColumnCount === state.columnCount) return;
+
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderGallery, 120);
 });
 
 applyTheme();
