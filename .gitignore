@@ -1,61 +1,3 @@
-# -------------------------
-# Python
-# -------------------------
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.py[cod]
-
-venv/
-.venv/
-env/
-
-# -------------------------
-# Configuration locale
-# -------------------------
-config.json
-config.local.json
-.env
-
-# -------------------------
-# Cache généré par l'application locale
-# -------------------------
-cache/
-thumbnails/
-static/cache/
-
-# -------------------------
-# Fichiers système
-# -------------------------
-Thumbs.db
-desktop.ini
-.DS_Store
-
-# -------------------------
-# IDE
-# -------------------------
-.vscode/
-.idea/
-
-# -------------------------
-# Logs
-# -------------------------
-*.log
-
-# -------------------------
-# Photos privées / sources locales
-# -------------------------
-A_publier/
-a_publier/
-source_public/
-photos_source/
-export_source/
-Retouché/
-Retouche/
-retouché/
-retouche/
-
 # Images ignorées par défaut
 *.jpg
 *.jpeg
@@ -70,17 +12,20 @@ retouche/
 *.cr2
 *.cr3
 
+# Archives inutiles
+*.zip
+
 # -------------------------
 # Exception : photos publiques exportées
 # -------------------------
-!online/
-!online/photos/
-!online/photos/.gitkeep
-!online/photos/*.webp
-!online/photos/*.jpg
-!online/photos/*.jpeg
-!online/photos/*.png
+!docs/
+!docs/photos/
+!docs/photos/.gitkeep
+!docs/photos/*.webp
+!docs/photos/*.jpg
+!docs/photos/*.jpeg
+!docs/photos/*.png
 
 # Données publiques générées
-!online/data/
-!online/data/photos.json
+!docs/data/
+!docs/data/photos.json
