@@ -3,10 +3,9 @@
 """
 Export public du portfolio photo.
 
-Le script lit uniquement les photos placées dans A_publier/,
-supprime les métadonnées EXIF, génère :
-- des miniatures optimisées pour la galerie ;
-- des images haute qualité pour la lightbox ;
+Lit uniquement les photos placées dans A_publier/ et génère :
+- docs/photos/thumbs/ : miniatures optimisées pour la galerie ;
+- docs/photos/full/   : images haute qualité pour la lightbox ;
 - docs/data/photos.json.
 
 A_publier/ doit rester ignoré par Git.
@@ -16,10 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import random
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from PIL import Image, ImageOps
 
@@ -43,22 +41,24 @@ SUPPORTED_EXTENSIONS = {
     ".tiff",
 }
 
-THUMB_MAX_SIZE = 1600
+# Bon compromis : galerie fluide, lightbox en vraie qualité portfolio.
+THUMB_MAX_SIZE = 1400
 THUMB_QUALITY = 86
 
 FULL_MAX_SIZE = 3200
 FULL_QUALITY = 92
 
-RANDOM_SEED = "portfolio-public-v1"
 
-
-def stable_hash(path: Path) -> str:
+def file_hash(path: Path) -> str:
+    """Hash utilisé uniquement en cache-busting dans l'URL, pas dans le nom du fichier."""
+    h = hashlib.sha1()
     try:
-        stat = path.stat()
-        raw = f"{path.name}|{stat.st_size}|{stat.st_mtime_ns}".encode("utf-8", errors="ignore")
+        h.update(path.name.encode("utf-8", errors="ignore"))
+        h.update(str(path.stat().st_size).encode())
+        h.update(str(path.stat().st_mtime_ns).encode())
     except Exception:
-        raw = str(path).encode("utf-8", errors="ignore")
-    return hashlib.sha1(raw).hexdigest()[:14]
+        h.update(str(path).encode("utf-8", errors="ignore"))
+    return h.hexdigest()[:12]
 
 
 def collect_images() -> List[Path]:
@@ -66,19 +66,21 @@ def collect_images() -> List[Path]:
         SOURCE_DIR.mkdir(parents=True, exist_ok=True)
         return []
 
-    files = [
+    images = [
         path
         for path in SOURCE_DIR.rglob("*")
         if path.is_file() and path.suffix.casefold() in SUPPORTED_EXTENSIONS
     ]
 
-    return sorted(files, key=lambda item: item.name.casefold())
+    # Ordre pseudo-aléatoire stable : pas de dates visibles, pas de tri intime.
+    return sorted(images, key=lambda path: file_hash(path))
 
 
 def reset_output() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Nettoyage des nouvelles sorties.
     if THUMBS_DIR.exists():
         shutil.rmtree(THUMBS_DIR)
     if FULL_DIR.exists():
@@ -87,62 +89,70 @@ def reset_output() -> None:
     THUMBS_DIR.mkdir(parents=True, exist_ok=True)
     FULL_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Nettoyage des anciennes sorties placées directement dans docs/photos/.
+    for old in PHOTOS_DIR.glob("photo-*.webp"):
+        try:
+            old.unlink()
+        except Exception:
+            pass
+
     gitkeep = PHOTOS_DIR / ".gitkeep"
     if not gitkeep.exists():
         gitkeep.write_text("", encoding="utf-8")
 
 
 def open_clean_image(source: Path) -> Image.Image:
+    """Ouvre l'image, corrige l'orientation EXIF, supprime les métadonnées en repartant d'une image RGB neuve."""
     with Image.open(source) as img:
         img = ImageOps.exif_transpose(img)
         img.load()
 
-    if img.mode in ("RGBA", "LA"):
-        background = Image.new("RGB", img.size, (255, 255, 255))
-        alpha = img.getchannel("A") if "A" in img.getbands() else None
-        background.paste(img.convert("RGBA"), mask=alpha)
-        return background
+        if img.mode in ("RGBA", "LA"):
+            rgba = img.convert("RGBA")
+            background = Image.new("RGB", rgba.size, (255, 255, 255))
+            background.paste(rgba, mask=rgba.getchannel("A"))
+            return background
 
-    if img.mode != "RGB":
-        img = img.convert("RGB")
+        if img.mode != "RGB":
+            img = img.convert("RGB")
 
-    return img
+        return img.copy()
 
 
 def resize_to_max(img: Image.Image, max_size: int) -> Image.Image:
-    copy = img.copy()
-    copy.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-    return copy
+    output = img.copy()
+    output.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+    return output
 
 
 def save_webp(img: Image.Image, target: Path, quality: int) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
+    # Pas d'EXIF transmis ici : fichier public nettoyé.
     img.save(target, "WEBP", quality=quality, method=6)
 
 
-def export_one(source: Path, index: int, order: int) -> Dict[str, object]:
-    image_id = stable_hash(source)
-    filename = f"photo-{index:04d}.webp"
+def export_one(source: Path, index: int) -> Dict[str, object]:
+    clean_name = f"photo-{index:04d}.webp"
+    version = file_hash(source)
 
     with open_clean_image(source) as img:
-        full = resize_to_max(img, FULL_MAX_SIZE)
         thumb = resize_to_max(img, THUMB_MAX_SIZE)
+        full = resize_to_max(img, FULL_MAX_SIZE)
 
-        full_path = FULL_DIR / filename
-        thumb_path = THUMBS_DIR / filename
+        thumb_path = THUMBS_DIR / clean_name
+        full_path = FULL_DIR / clean_name
 
-        save_webp(full, full_path, FULL_QUALITY)
         save_webp(thumb, thumb_path, THUMB_QUALITY)
+        save_webp(full, full_path, FULL_QUALITY)
 
         width, height = thumb.size
         full_width, full_height = full.size
 
     return {
-        "id": f"photo-{index:04d}-{image_id}",
-        "order": order,
-        "thumb_url": f"photos/thumbs/{filename}",
-        "full_url": f"photos/full/{filename}",
-        "url": f"photos/thumbs/{filename}",
+        "id": f"photo-{index:04d}",
+        "order": index,
+        "thumb_url": f"photos/thumbs/{clean_name}?v={version}",
+        "full_url": f"photos/full/{clean_name}?v={version}",
         "width": width,
         "height": height,
         "full_width": full_width,
@@ -150,15 +160,8 @@ def export_one(source: Path, index: int, order: int) -> Dict[str, object]:
     }
 
 
-def build_random_order(images: List[Path]) -> Dict[Path, int]:
-    ordered = list(images)
-    random.Random(RANDOM_SEED).shuffle(ordered)
-    return {path: order for order, path in enumerate(ordered)}
-
-
 def main() -> int:
     images = collect_images()
-
     reset_output()
 
     if not images:
@@ -166,17 +169,15 @@ def main() -> int:
         print("Aucune photo trouvée dans A_publier/.")
         return 0
 
-    order_map = build_random_order(images)
-    exported = []
+    exported: List[Dict[str, object]] = []
 
     for index, source in enumerate(images, start=1):
         try:
-            exported.append(export_one(source, index, order_map[source]))
+            exported.append(export_one(source, index))
             print(f"Export : {source.name}")
         except Exception as exc:
             print(f"Erreur avec {source.name} : {exc}")
 
-    exported.sort(key=lambda item: int(item["order"]))
     JSON_PATH.write_text(json.dumps(exported, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     print()
