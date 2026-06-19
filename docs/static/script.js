@@ -47,6 +47,28 @@ function preloadAround(index) {
   preloadImage(getFullUrl(next));
 }
 
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function orderPhotos(photos) {
+  const featured = photos
+    .filter((photo) => photo.featured === true)
+    .sort((a, b) => {
+      const orderA = Number.isFinite(a.order) ? a.order : 0;
+      const orderB = Number.isFinite(b.order) ? b.order : 0;
+      return orderA - orderB;
+    });
+
+  const random = shuffleArray(photos.filter((photo) => photo.featured !== true));
+
+  return [...featured, ...random];
+}
+
 async function loadPhotos() {
   try {
     const response = await fetch("data/photos.json", { cache: "no-store" });
@@ -57,11 +79,7 @@ async function loadPhotos() {
     state.photos = [];
   }
 
-  state.filtered = [...state.photos].sort((a, b) => {
-    const orderA = Number.isFinite(a.order) ? a.order : 0;
-    const orderB = Number.isFinite(b.order) ? b.order : 0;
-    return orderA - orderB;
-  });
+  state.filtered = orderPhotos(state.photos);
 
   renderGallery();
 }
@@ -78,6 +96,10 @@ function renderGallery() {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "photo-card";
+
+    if (photo.featured === true) {
+      card.classList.add("is-featured");
+    }
 
     if (photo.width && photo.height) {
       card.style.aspectRatio = `${photo.width} / ${photo.height}`;
