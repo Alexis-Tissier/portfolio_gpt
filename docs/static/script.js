@@ -28,6 +28,14 @@ function getFullUrl(photo) {
   return photo.full_url || photo.url || photo.thumb_url;
 }
 
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
 function preloadImage(url) {
   if (!url) return;
   const img = new Image();
@@ -47,28 +55,6 @@ function preloadAround(index) {
   preloadImage(getFullUrl(next));
 }
 
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-
-function orderPhotos(photos) {
-  const featured = photos
-    .filter((photo) => photo.featured === true)
-    .sort((a, b) => {
-      const orderA = Number.isFinite(a.order) ? a.order : 0;
-      const orderB = Number.isFinite(b.order) ? b.order : 0;
-      return orderA - orderB;
-    });
-
-  const random = shuffleArray(photos.filter((photo) => photo.featured !== true));
-
-  return [...featured, ...random];
-}
-
 async function loadPhotos() {
   try {
     const response = await fetch("data/photos.json", { cache: "no-store" });
@@ -79,9 +65,67 @@ async function loadPhotos() {
     state.photos = [];
   }
 
-  state.filtered = orderPhotos(state.photos);
+  const featuredPhotos = state.photos
+    .filter((photo) => photo.featured === true)
+    .sort((a, b) => {
+      const orderA = Number.isFinite(a.order) ? a.order : 0;
+      const orderB = Number.isFinite(b.order) ? b.order : 0;
+      return orderA - orderB;
+    });
+
+  const randomPhotos = shuffleArray(
+    state.photos.filter((photo) => photo.featured !== true)
+  );
+
+  state.filtered = [...featuredPhotos, ...randomPhotos];
 
   renderGallery();
+}
+
+function createPhotoCard(photo, index) {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "photo-card";
+
+  if (photo.featured) {
+    card.classList.add("featured-card");
+  }
+
+  if (photo.width && photo.height) {
+    card.style.aspectRatio = `${photo.width} / ${photo.height}`;
+  }
+
+  card.addEventListener("click", () => openLightbox(index));
+
+  const img = document.createElement("img");
+  img.src = getThumbUrl(photo);
+  img.alt = "Photographie";
+  img.decoding = "async";
+  img.loading = index < 18 ? "eager" : "lazy";
+  img.fetchPriority = index < 8 ? "high" : "auto";
+
+  img.addEventListener("load", () => {
+    card.classList.add("is-loaded");
+  });
+
+  img.addEventListener("error", () => {
+    const fallback = getFullUrl(photo);
+    if (fallback && img.src !== new URL(fallback, window.location.href).href) {
+      img.src = fallback;
+      return;
+    }
+    card.classList.add("is-error");
+  });
+
+  const caption = document.createElement("span");
+  caption.className = "photo-caption";
+  caption.setAttribute("aria-hidden", "true");
+  caption.innerHTML = "<strong>Voir la photo</strong>";
+
+  card.appendChild(img);
+  card.appendChild(caption);
+
+  return card;
 }
 
 function renderGallery() {
@@ -89,55 +133,32 @@ function renderGallery() {
   photoCount.textContent = state.filtered.length;
   emptyState.classList.toggle("hidden", state.filtered.length > 0);
 
-  const grid = document.createElement("div");
-  grid.className = "masonry public-selection";
+  const featuredPhotos = state.filtered.filter((photo) => photo.featured === true);
+  const randomPhotos = state.filtered.filter((photo) => photo.featured !== true);
 
-  state.filtered.forEach((photo, index) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "photo-card";
+  if (featuredPhotos.length > 0) {
+    const featuredGrid = document.createElement("div");
+    featuredGrid.className = "featured-selection";
 
-    if (photo.featured === true) {
-      card.classList.add("is-featured");
-    }
-
-    if (photo.width && photo.height) {
-      card.style.aspectRatio = `${photo.width} / ${photo.height}`;
-    }
-
-    card.addEventListener("click", () => openLightbox(index));
-
-    const img = document.createElement("img");
-    img.src = getThumbUrl(photo);
-    img.alt = "Photographie";
-    img.decoding = "async";
-    img.loading = index < 18 ? "eager" : "lazy";
-    img.fetchPriority = index < 8 ? "high" : "auto";
-
-    img.addEventListener("load", () => {
-      card.classList.add("is-loaded");
+    featuredPhotos.forEach((photo) => {
+      const index = state.filtered.indexOf(photo);
+      featuredGrid.appendChild(createPhotoCard(photo, index));
     });
 
-    img.addEventListener("error", () => {
-      const fallback = getFullUrl(photo);
-      if (fallback && img.src !== new URL(fallback, window.location.href).href) {
-        img.src = fallback;
-        return;
-      }
-      card.classList.add("is-error");
+    gallery.appendChild(featuredGrid);
+  }
+
+  if (randomPhotos.length > 0) {
+    const masonry = document.createElement("div");
+    masonry.className = "masonry public-selection";
+
+    randomPhotos.forEach((photo) => {
+      const index = state.filtered.indexOf(photo);
+      masonry.appendChild(createPhotoCard(photo, index));
     });
 
-    const caption = document.createElement("span");
-    caption.className = "photo-caption";
-    caption.setAttribute("aria-hidden", "true");
-    caption.innerHTML = "<strong>Voir la photo</strong>";
-
-    card.appendChild(img);
-    card.appendChild(caption);
-    grid.appendChild(card);
-  });
-
-  gallery.appendChild(grid);
+    gallery.appendChild(masonry);
+  }
 }
 
 function openLightbox(index) {

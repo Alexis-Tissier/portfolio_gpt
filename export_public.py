@@ -3,13 +3,13 @@
 """
 Export public du portfolio photo.
 
-Structure recommandée :
+Structure attendue :
 
 A_publier/
-├── featured/   -> photos mises en avant, toujours affichées en premier
+├── featured/   -> photo(s) mises en avant, affichées en premier
 └── random/     -> photos mélangées à chaque chargement du site
 
-Le script génère :
+Génère :
 - docs/photos/thumbs/ : miniatures optimisées pour la galerie ;
 - docs/photos/full/   : images haute qualité pour la lightbox ;
 - docs/data/photos.json.
@@ -23,7 +23,7 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from PIL import Image, ImageOps
 
@@ -69,76 +69,44 @@ def file_hash(path: Path) -> str:
     return h.hexdigest()[:12]
 
 
-def ensure_source_structure() -> None:
-    """Crée la structure A_publier/featured et A_publier/random si elle n'existe pas."""
-    FEATURED_DIR.mkdir(parents=True, exist_ok=True)
-    RANDOM_DIR.mkdir(parents=True, exist_ok=True)
-
-    for folder in (FEATURED_DIR, RANDOM_DIR):
-        gitkeep = folder / ".gitkeep"
-        if not gitkeep.exists():
-            gitkeep.write_text("", encoding="utf-8")
-
-
-def is_supported_image(path: Path) -> bool:
-    return path.is_file() and path.suffix.casefold() in SUPPORTED_EXTENSIONS
-
-
 def collect_images_from(folder: Path) -> List[Path]:
     if not folder.exists():
         return []
-    return sorted(
-        [path for path in folder.rglob("*") if is_supported_image(path)],
-        key=lambda path: path.name.casefold(),
-    )
+
+    images = [
+        path
+        for path in folder.rglob("*")
+        if path.is_file() and path.suffix.casefold() in SUPPORTED_EXTENSIONS
+    ]
+
+    # Ordre stable à l'export. Le mélange random se fait dans le navigateur.
+    return sorted(images, key=lambda path: path.name.casefold())
 
 
-def collect_loose_images() -> List[Path]:
-    """
-    Compatibilité : si des photos sont encore directement dans A_publier/,
-    elles sont traitées comme des photos random.
-    """
-    if not SOURCE_DIR.exists():
-        return []
-
-    ignored_dirs = {FEATURED_DIR.resolve(), RANDOM_DIR.resolve()}
-    loose_images: List[Path] = []
-
-    for path in SOURCE_DIR.iterdir():
-        if path.is_dir():
-            try:
-                if path.resolve() in ignored_dirs:
-                    continue
-            except Exception:
-                continue
-        if is_supported_image(path):
-            loose_images.append(path)
-
-    return sorted(loose_images, key=lambda path: path.name.casefold())
-
-
-def collect_images() -> List[Tuple[Path, bool]]:
-    """
-    Retourne une liste de tuples :
-    - (chemin, True)  pour featured ;
-    - (chemin, False) pour random.
-
-    featured/ est gardé dans l'ordre alphabétique.
-    random/ est mélangé côté navigateur à chaque refresh.
-    """
-    ensure_source_structure()
+def collect_images() -> tuple[List[Path], List[Path]]:
+    SOURCE_DIR.mkdir(parents=True, exist_ok=True)
+    FEATURED_DIR.mkdir(parents=True, exist_ok=True)
+    RANDOM_DIR.mkdir(parents=True, exist_ok=True)
 
     featured = collect_images_from(FEATURED_DIR)
-    random_images = collect_images_from(RANDOM_DIR) + collect_loose_images()
+    random_photos = collect_images_from(RANDOM_DIR)
 
-    return [(path, True) for path in featured] + [(path, False) for path in random_images]
+    # Compatibilité : si l'utilisateur met encore des images directement dans A_publier/,
+    # elles sont considérées comme random, sans lire featured/ et random/ deux fois.
+    direct_images = [
+        path
+        for path in SOURCE_DIR.iterdir()
+        if path.is_file() and path.suffix.casefold() in SUPPORTED_EXTENSIONS
+    ]
+    random_photos.extend(sorted(direct_images, key=lambda path: path.name.casefold()))
+
+    return featured, random_photos
 
 
 def reset_output() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Nettoyage des nouvelles sorties.
     if THUMBS_DIR.exists():
         shutil.rmtree(THUMBS_DIR)
     if FULL_DIR.exists():
@@ -160,7 +128,7 @@ def reset_output() -> None:
 
 
 def open_clean_image(source: Path) -> Image.Image:
-    """Ouvre l'image, corrige l'orientation EXIF, supprime les métadonnées en repartant d'une image RGB neuve."""
+    """Ouvre l'image, corrige l'orientation EXIF et supprime les métadonnées."""
     with Image.open(source) as img:
         img = ImageOps.exif_transpose(img)
         img.load()
@@ -185,7 +153,6 @@ def resize_to_max(img: Image.Image, max_size: int) -> Image.Image:
 
 def save_webp(img: Image.Image, target: Path, quality: int) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    # Pas d'EXIF transmis ici : fichier public nettoyé.
     img.save(target, "WEBP", quality=quality, method=6)
 
 
@@ -220,37 +187,42 @@ def export_one(source: Path, index: int, featured: bool) -> Dict[str, object]:
 
 
 def main() -> int:
-    images = collect_images()
+    featured_images, random_images = collect_images()
     reset_output()
 
-    if not images:
+    if not featured_images and not random_images:
         JSON_PATH.write_text("[]\n", encoding="utf-8")
         print("Aucune photo trouvée dans A_publier/featured/ ou A_publier/random/.")
-        print(f"Dossiers créés : {FEATURED_DIR} et {RANDOM_DIR}")
         return 0
 
     exported: List[Dict[str, object]] = []
+    index = 1
 
-    for index, (source, featured) in enumerate(images, start=1):
+    for source in featured_images:
         try:
-            exported.append(export_one(source, index, featured))
-            tag = "featured" if featured else "random"
-            print(f"Export [{tag}] : {source.name}")
+            exported.append(export_one(source, index, featured=True))
+            print(f"Featured : {source.name}")
+            index += 1
+        except Exception as exc:
+            print(f"Erreur avec {source.name} : {exc}")
+
+    for source in random_images:
+        try:
+            exported.append(export_one(source, index, featured=False))
+            print(f"Random   : {source.name}")
+            index += 1
         except Exception as exc:
             print(f"Erreur avec {source.name} : {exc}")
 
     JSON_PATH.write_text(json.dumps(exported, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    featured_count = sum(1 for item in exported if item.get("featured"))
-    random_count = len(exported) - featured_count
-
     print()
     print(f"{len(exported)} photo(s) exportée(s).")
-    print(f"Featured  : {featured_count}")
-    print(f"Random    : {random_count}")
-    print(f"Miniatures : {THUMBS_DIR}")
-    print(f"Photos HD  : {FULL_DIR}")
-    print(f"Données    : {JSON_PATH}")
+    print(f"Featured  : {len(featured_images)}")
+    print(f"Random    : {len(random_images)}")
+    print(f"Miniatures: {THUMBS_DIR}")
+    print(f"Photos HD : {FULL_DIR}")
+    print(f"Données   : {JSON_PATH}")
 
     return 0
 
