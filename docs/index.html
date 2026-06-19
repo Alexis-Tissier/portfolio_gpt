@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portfolio photo</title>
+  <meta name="description" content="Portfolio photo public." />
+  <link rel="stylesheet" href="static/style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Portfolio photo</p>
+        <h1>Alexis Tissier</h1>
+        <p class="muted">Sélection publique de photographies.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="themeToggle" class="ghost-btn" type="button">Mode clair</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <span id="photoCount">0</span> photos
+    </section>
+
+    <section id="gallery" class="gallery"></section>
+
+    <section id="emptyState" class="empty-state hidden">
+      <h2>Aucune photo publiée</h2>
+      <p class="muted">Ajoute des photos dans <code>A_publier/</code>, puis lance <code>python export_public.py</code>.</p>
+    </section>
+  </main>
+
+  <div id="lightbox" class="lightbox hidden" aria-hidden="true">
+    <button id="closeLightbox" class="lightbox-close" type="button" aria-label="Fermer">×</button>
+    <button id="prevPhoto" class="lightbox-nav lightbox-prev" type="button" aria-label="Photo précédente">‹</button>
+    <figure>
+      <img id="lightboxImage" alt="" />
+      <figcaption>
+        <strong id="lightboxTitle"></strong>
+        <span id="lightboxMeta"></span>
+      </figcaption>
+    </figure>
+    <button id="nextPhoto" class="lightbox-nav lightbox-next" type="button" aria-label="Photo suivante">›</button>
+  </div>
+
+  <script src="static/script.js"></script>
+</body>
+</html>
