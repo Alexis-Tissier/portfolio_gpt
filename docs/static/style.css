@@ -148,9 +148,9 @@ button {
   border: 1px solid var(--line);
   border-radius: 22px;
   background: var(--panel);
+  transform: translateZ(0);
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
   break-inside: avoid;
-  isolation: isolate;
 }
 
 .photo-card img {
@@ -158,13 +158,12 @@ button {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  opacity: 1;
-  backface-visibility: hidden;
-  transition: transform 0.35s ease;
+  transition: transform 0.35s ease, filter 0.35s ease;
 }
 
 .photo-card:hover img {
-  transform: scale(1.018);
+  transform: scale(1.025);
+  filter: brightness(0.82);
 }
 
 .photo-caption {
@@ -370,100 +369,4 @@ body.lightbox-open {
   .masonry {
     column-count: 1;
   }
-}
-/* ----------------------------------
-   Correction définitive lightbox
-   ---------------------------------- */
-
-.lightbox-close {
-  position: fixed !important;
-  top: 28px !important;
-  right: 32px !important;
-  z-index: 1005 !important;
-
-  width: 44px !important;
-  height: 44px !important;
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
-  background: transparent !important;
-  color: rgba(255, 255, 255, 0.85) !important;
-
-  font-size: 0 !important;
-  line-height: 1 !important;
-  cursor: pointer !important;
-}
-
-.lightbox-close::before {
-  content: "×";
-  font-size: 42px;
-  font-weight: 300;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.lightbox-close:hover {
-  color: white !important;
-  transform: none !important;
-}
-
-.lightbox-nav {
-  position: fixed !important;
-  top: 50% !important;
-  z-index: 1003 !important;
-
-  width: 80px !important;
-  height: 110px !important;
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  padding: 0 !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-
-  color: rgba(255, 255, 255, 0.75) !important;
-  font-size: 0 !important;
-  cursor: pointer !important;
-}
-
-.lightbox-prev {
-  left: 24px !important;
-  right: auto !important;
-  transform: translateY(-50%) !important;
-}
-
-.lightbox-next {
-  right: 24px !important;
-  left: auto !important;
-  transform: translateY(-50%) !important;
-}
-
-.lightbox-prev::before {
-  content: "‹";
-  font-size: 74px;
-  font-weight: 200;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.lightbox-next::before {
-  content: "›";
-  font-size: 74px;
-  font-weight: 200;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.lightbox-nav:hover {
-  color: white !important;
-  transform: translateY(-50%) !important;
 }
