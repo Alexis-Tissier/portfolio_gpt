@@ -14,17 +14,18 @@
 
 # Archives inutiles
 *.zip
-
 # -------------------------
 # Exception : photos publiques exportées
 # -------------------------
 !docs/
 !docs/photos/
 !docs/photos/.gitkeep
-!docs/photos/*.webp
-!docs/photos/*.jpg
-!docs/photos/*.jpeg
-!docs/photos/*.png
+
+!docs/photos/thumbs/
+!docs/photos/thumbs/*.webp
+
+!docs/photos/full/
+!docs/photos/full/*.webp
 
 # Données publiques générées
 !docs/data/
