@@ -1,98 +1,109 @@
-# Portfolio Photo Local
+# Portfolio Photo Public
 
-Application locale en Python permettant d’afficher automatiquement un portfolio photo à partir d’un dossier principal.
-Fait entièrement par ChatGPT 5.5
+Version publique et statique de mon portfolio photo.
 
-L’application recherche tous les dossiers nommés `Retouché`, récupère les photos qu’ils contiennent, puis les affiche dans une galerie web locale, triée par date.
+Ce site affiche uniquement une sélection de photos destinées à être publiées en ligne.
+Les photos privées, les dossiers locaux, les fichiers de configuration et les caches ne sont pas envoyés sur GitHub.
 
-## Fonctionnalités
+## Fonctionnement
 
-- Scan automatique d’une arborescence de dossiers
-- Détection des dossiers `Retouché`
-- Récupération des photos dans les sous-dossiers
-- Tri chronologique à partir du nom du fichier
-- Affichage par mois
-- Galerie web locale
-- Lecture seule des fichiers
-
-## Format des fichiers
-
-L’application utilise la date présente au début du nom du fichier.
-
-Exemple :
+Les photos publiques sont générées à partir du dossier local :
 
 ```text
-20260616-200152-0001-Alexis Tissier.jpg
+A_publier/
 ```
 
-La date détectée est :
+Ce dossier est ignoré par Git et reste uniquement sur l’ordinateur.
+
+Le script d’export :
 
 ```text
-20260616 = 16 juin 2026
+export_public.py
 ```
 
-## Installation
+permet de :
 
-Cloner le projet :
+* convertir les images en `.webp` ;
+* supprimer les métadonnées EXIF ;
+* renommer les fichiers proprement ;
+* générer le fichier `docs/data/photos.json` ;
+* placer les images publiques dans `docs/photos/`.
 
-```bash
-git clone https://github.com/Alexis-Tissier/portfolio_gpt.git
-cd portfolio_gpt
-```
-
-Installer les dépendances :
-
-```bash
-pip install -r requirements.txt
-```
-
-## Lancement
-
-Sous Windows :
+## Structure
 
 ```text
-lancer_windows.bat
-```
-
-Ou manuellement :
-
-```bash
-python server.py
-```
-
-L’application s’ouvre ensuite dans le navigateur à l’adresse :
-
-```text
-http://127.0.0.1:8000
-```
-
-## Configuration
-
-Le fichier `config.json` n’est pas envoyé sur GitHub, car il dépend du chemin local de chaque utilisateur.
-
-Exemple :
-
-```json
-{
-  "photos_root": "C:/Users/Alexis/Documents/Photos",
-  "target_folder_name": "Retouché"
-}
-```
-
-## Structure du projet
-
-```text
-portfolio_gpt/
+docs/
+├── index.html
 ├── static/
-├── .gitignore
-├── README.md
-├── lancer_windows.bat
-├── lancer_mac_linux.sh
-├── requirements.txt
-└── server.py
+│   ├── script.js
+│   └── style.css
+├── data/
+│   └── photos.json
+└── photos/
+    └── photo-0001.webp
 ```
 
-## Important
+Le dossier `docs/` est utilisé pour GitHub Pages.
 
-Les photos ne sont pas stockées dans GitHub.  
-L’application lit simplement les fichiers présents sur l’ordinateur.
+## Mettre à jour les photos publiques
+
+1. Ajouter les photos publiables dans :
+
+```text
+A_publier/
+```
+
+2. Lancer l’export :
+
+```bash
+python export_public.py
+```
+
+3. Tester en local :
+
+```bash
+cd docs
+python -m http.server 8080
+```
+
+Puis ouvrir :
+
+```text
+http://127.0.0.1:8080
+```
+
+4. Envoyer la mise à jour sur GitHub :
+
+```bash
+cd ..
+git add docs/ export_public.py
+git commit -m "Mise à jour du portfolio public"
+git push
+```
+
+## Confidentialité
+
+Ce site est public.
+
+Ne doivent être placées dans `A_publier/` que des photos pouvant être publiées en ligne.
+Les photos privées, les dossiers sources, les fichiers de configuration et les caches doivent rester hors GitHub.
+
+Fichiers ignorés volontairement :
+
+```text
+A_publier/
+config.json
+config.local.json
+cache/
+Retouché/
+photos sources
+```
+
+## Déploiement
+
+Le site est prévu pour être publié avec GitHub Pages depuis :
+
+```text
+branche : online
+dossier : /docs
+```
